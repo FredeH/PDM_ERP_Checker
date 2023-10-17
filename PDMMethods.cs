@@ -88,7 +88,7 @@ namespace PDM_ERP_Checker
             return description;
         }
 
-        public PDMVariables GetPDMVariables(string id)
+        public PDMVariables GetPDMVariableCard(IEdmFile5 file)
         {
             string[] pdmVariables = { "PartNo", "Number", "Description",
                 "Drawn By", "ItemType", "ComponentGroup1",
@@ -100,10 +100,6 @@ namespace PDM_ERP_Checker
                 "Revision by","Last revision"};
 
             PDMVariables variables = new PDMVariables();
-
-            var results = SearchFileName(id);
-            var result = results.GetFirstResult();
-            var file = SearchFile(result);
 
             var cardVariables = new Dictionary<string, string>();
 
@@ -118,44 +114,124 @@ namespace PDM_ERP_Checker
                 var variableName = kvp.Key;
                 var variableValue = kvp.Value;
 
-                var field = typeof(PDMVariables).GetField(variableName);
-                if (field != null)
+                var property = typeof(PDMVariables).GetProperty(variableName);
+                if (property != null && property.CanWrite)
                 {
-                    field.SetValue(variables, variableValue);
+                    property.SetValue(variables, variableValue);
                 }
             }
 
+            Console.WriteLine(variables.Description);
+
             return variables;
         }
+
+        public PDMPart GetPDMFile(string id)
+        {
+            string[] pdmVariables = { "PartNo", "Number", "Description",
+                "Drawn By", "ItemType", "ComponentGroup1",
+                "ComponentGroup2", "ComponentGroup3", "ComponentGroup4",
+                "ComponentGroup5", "Consumed number", "Length",
+                "Material", "Manufacture", "Manufacturing Treatment",
+                "Surface Treatment", "Date", "Weight", "State",
+                "Type nr.", "UnitOfMeasure","Web direction","Revision",
+                "Revision by","Last revision"};
+
+            PDMVariables variables = new PDMVariables();
+
+            var results = SearchFileName(id);
+            var result = results.GetFirstResult();
+
+            IEdmFile5 file;
+            IEdmFolder5 folder;
+
+            file = vault.GetFileFromPath(result.Path, out folder);
+
+            var cardVariables = new Dictionary<string, string>();
+
+            foreach (string variable in pdmVariables)
+            {
+                var temp = SearchCardVariable(file, variable);
+                cardVariables[variable] = temp;
+            }
+
+            
+
+            foreach (var kvp in cardVariables)
+            {
+                var variableName = kvp.Key;
+                var variableValue = kvp.Value;
+
+                var property = typeof(PDMVariables).GetProperty(variableName);
+                if (property != null && property.CanWrite)
+                {
+                    property.SetValue(variables, variableValue);
+                }
+            }
+
+            PDMPart part = new PDMPart() { file = file, folder = folder, variables = variables };
+
+            return part;
+        }
+
+        public List<IEdmReference11> GetReferences(IEdmFile5 file, IEdmFolder5 folder)
+        {
+            IEdmReference11 references = file.GetReferenceTree(folder.ID) as IEdmReference11;
+
+            string copyString = "";
+
+
+            IEdmPos5 pos = default(IEdmPos5);
+            IEdmReference11 @ref = default(IEdmReference11);
+            bool Top = true;
+
+            pos = references.GetFirstChildPosition3("", Top, true, (int)EdmRefFlags.EdmRef_File, "", 0);
+            List<IEdmReference11> refs = new List<IEdmReference11>();
+
+            while ((!pos.IsNull))
+            {
+                @ref = (IEdmReference11) references.GetNextChild(pos);
+                refs.Add(@ref);
+            }
+
+            return refs;
+        }
+    }
+
+    public class PDMPart
+    {
+        public IEdmFile5 file { get; set; }
+        public IEdmFolder5 folder { get; set; }
+        public PDMVariables variables;
     }
 
     public class PDMVariables
     {
-        public string PartNo = "PartNo";
-        public string Number = "Number";
-        public string Description = "Description";
-        public string DrawnBy = "Drawn By";
-        public string ItemType = "ItemType";
-        public string ComponentGroup1 = "ComponentGroup1";
-        public string ComponentGroup2 = "ComponentGroup2";
-        public string ComponentGroup3 = "ComponentGroup3";
-        public string ComponentGroup4 = "ComponentGroup4";
-        public string ComponentGroup5 = "ComponentGroup5";
-        public string ConsumedNumber = "Consumed number";
-        public string Length = "Length";
-        public string Material = "Material";
-        public string Manufacture = "Manufacture";
-        public string ManufacturingTreatment = "Manufacturing Treatment";
-        public string SurfaceTreatment = "Surface Treatment";
-        public string Date = "Date";
-        public string Weight = "Weight";
-        public string State = "State";
-        public string TypeNumber = "Type nr.";
-        public string UOM = "UnitOfMeasure";
-        public string WebDirection = "Web direction";
-        public string Revision = "Revision";
-        public string RevisionBy = "Revision by";
-        public string LastRevision = "Last revision";
+        public string PartNo { get; set; } = "PartNo";
+        public string Number { get; set; } = "Number";
+        public string Description { get; set; } = "Description";
+        public string DrawnBy { get; set; } = "Drawn By";
+        public string ItemType { get; set; } = "ItemType";
+        public string ComponentGroup1 { get; set; } = "ComponentGroup1";
+        public string ComponentGroup2 { get; set; } = "ComponentGroup2";
+        public string ComponentGroup3 { get; set; } = "ComponentGroup3";
+        public string ComponentGroup4 { get; set; } = "ComponentGroup4";
+        public string ComponentGroup5 { get; set; } = "ComponentGroup5";
+        public string ConsumedNumber { get; set; } = "Consumed number";
+        public string Length { get; set; } = "Length";
+        public string Material { get; set; } = "Material";
+        public string Manufacture { get; set; } = "Manufacture";
+        public string ManufacturingTreatment { get; set; } = "Manufacturing Treatment";
+        public string SurfaceTreatment { get; set; } = "Surface Treatment";
+        public string Date { get; set; } = "Date";
+        public string Weight { get; set; } = "Weight";
+        public string State { get; set; } = "State";
+        public string TypeNumber { get; set; } = "Type nr.";
+        public string UOM { get; set; } = "UnitOfMeasure";
+        public string WebDirection { get; set; } = "Web direction";
+        public string Revision { get; set; } = "Revision";
+        public string RevisionBy { get; set; } = "Revision by";
+        public string LastRevision { get; set; } = "Last revision";
     }
 
     public enum pdmVariables

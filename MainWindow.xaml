@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:PDM_ERP_Checker"
+        xmlns:self="clr-namespace:PDM_ERP_Checker"
         mc:Ignorable="d"
         Title="MainWindow" Height="500" Width="800" Background="#FF272727" BorderBrush="#FF444444">
     <Grid>
@@ -20,11 +21,66 @@
         <Label Content="ERP" HorizontalAlignment="Left" Margin="231,106,0,0" VerticalAlignment="Top" Foreground="White"/>
         <Label Content="PDM" HorizontalAlignment="Left" Margin="423,106,0,0" VerticalAlignment="Top" Foreground="White"/>
         <TextBlock Name="output_pdm" HorizontalAlignment="Left" Margin="423,136,0,0" TextWrapping="Wrap" Text="TextBlock" VerticalAlignment="Top" Foreground="White"/>
-        <TreeView Margin="0,200,0,0" Background="#FF212121" BorderBrush="#FF4C4C4C">
-            <TreeViewItem Header="TreeViewItem" Foreground="White">
-                
-            </TreeViewItem>
+        <TreeView Name="trvParts" Margin="0,200,0,0" Background="#FF212121" BorderBrush="#FF4C4C4C">
+            <TreeView.Resources>
+                <HierarchicalDataTemplate DataType="{x:Type self:Assembly}" ItemsSource="{Binding SubassemblyOrParts}">
+                    <StackPanel Orientation="Horizontal">
+                        <Border x:Name="IntegrationLevel" BorderThickness="4,0,0,0">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="BorderBrush" Value="#FF00A903" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IntegrationError}" Value="True">
+                                            <Setter Property="BorderBrush" Value="#FF00A903" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IntegrationError}" Value="False">
+                                            <Setter Property="BorderBrush" Value="Red" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                        </Border>
+                        <Image Source="" Margin="0,0,5,0" />
+                        <TextBlock Text="{Binding Name}" Foreground="White" />
+                        <TextBlock Text=" [" Foreground="White" />
+                        <TextBlock Name="ItemCount" Text="{Binding ItemCount}" Foreground="White" />
+                        <TextBlock Text="]" Foreground="White" />
+                    </StackPanel>
+                    <HierarchicalDataTemplate.Triggers>
+                        <DataTrigger Binding="{Binding IsSubassembly}" Value="True">
+                            <Setter TargetName="ItemCount" Property="Text" Value="{Binding SubassemblyOrParts.Count}" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding IsSubassembly}" Value="False">
+                            <Setter TargetName="ItemCount" Property="Text" Value="{Binding SubassemblyOrParts.Count}" />
+                        </DataTrigger>
+                    </HierarchicalDataTemplate.Triggers>
+                </HierarchicalDataTemplate>
+
+                <DataTemplate DataType="{x:Type self:Part}">
+                    <StackPanel Orientation="Horizontal">
+                        <Border x:Name="IntegrationLevel" BorderThickness="4,0,0,0">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="BorderBrush" Value="#FF00A903" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IntegrationError}" Value="True">
+                                            <Setter Property="BorderBrush" Value="#FF00A903" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IntegrationError}" Value="False">
+                                            <Setter Property="BorderBrush" Value="Red" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                        </Border>
+                        <Image Source="" Margin="0,0,5,0" />
+                        <TextBlock Text="{Binding Name}" Foreground="White" />
+                        <TextBlock Text="{Binding Variables.Description}" Foreground="White" Margin="10,0,0,0"/>
+                    </StackPanel>
+                </DataTemplate>
+            </TreeView.Resources>
         </TreeView>
+
 
     </Grid>
 </Window>

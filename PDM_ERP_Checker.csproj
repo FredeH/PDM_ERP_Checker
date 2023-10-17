@@ -109,12 +109,14 @@
       <DependentUpon>App.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="ERPMethods.cs" />
     <Compile Include="MainWindow.xaml.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="OpenAPIs\PDM_Inventory_Checker_openapiv2.cs" />
     <Compile Include="PDMMethods.cs" />
     <Compile Include="Properties\AssemblyInfo.cs">
       <SubType>Code</SubType>
@@ -133,6 +135,12 @@
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
+    <None Include="..\..\PDM_Inventory_Checker_openapiv2.json">
+      <Link>OpenAPIs\PDM_Inventory_Checker_openapiv2.json</Link>
+      <Namespace>ERP</Namespace>
+      <ClassName>ERPAPI</ClassName>
+      <CodeGenerator>NSwagCSharp</CodeGenerator>
+    </None>
     <None Include="packages.config" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
