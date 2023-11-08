@@ -16,12 +16,17 @@ using System.Windows.Navigation;
 using System.Windows.Shapes;
 using RestSharp;
 using RestSharp.Authenticators;
-using ERP;
+using ERP_LIVE;
 using PDM_ERP_Checker.ERP;
 using System.Collections.ObjectModel;
 using EPDM.Interop.epdm;
 using System.Windows.Markup;
 using System.Web.UI.WebControls.WebParts;
+using System.Collections;
+using System.Text.RegularExpressions;
+using System.Reflection;
+using AppSettings;
+using System.ComponentModel;
 
 namespace PDM_ERP_Checker
 {
@@ -31,185 +36,244 @@ namespace PDM_ERP_Checker
     public partial class MainWindow : Window
     {
 
-        PDMMethods pDMMethods = new PDMMethods();
-        ERPMethods eRPMethods = new ERPMethods();
+        PDMMethods pDMMethods { get; set; } = new PDMMethods();
+        ERPMethods eRPMethods { get; set; } = new ERPMethods();
+        IntegrationMethods integrationMethods { get; set; } = new IntegrationMethods();
+
+        LoginWindow loginWindow;
+        public static bool loggedIn { get; set; }
+        public static string username { get; set; }
+        public static string password { get; set; }
+
+        List<string> ErrorTaskList = new List<string>();
+        List<Assembly> assemblyList = new List<Assembly>();
+
+        public ObservableCollection<PDMBOMItem> bomDataCollection { get; set; } = new ObservableCollection<PDMBOMItem>();
 
         public MainWindow()
         {
             InitializeComponent();
             pDMMethods.InitializePDM();
+            InitializeLoginWindow();
+            ERPName.Content = Settings.ERPName + " description";
         }
 
-
-        private void TextBox_TextChanged(object sender, TextChangedEventArgs e)
+        private void InitializeLoginWindow()
         {
-
-        }
-
-        private void TextBox_TextChanged_1(object sender, TextChangedEventArgs e)
-        {
-
+            loginWindow = new LoginWindow();
+            loginWindow.eRPMethods = eRPMethods;
+            loginWindow.Show();
+            loginWindow.Topmost = true;
         }
 
         private void Button_Login(object sender, RoutedEventArgs e)
         {
-
+            if(loginWindow.IsLoaded != false)
+            {
+            loginWindow.Show();
+            } else
+            {
+                InitializeLoginWindow();
+            }
         }
 
         private void Button_Search(object sender, RoutedEventArgs e)
         {
-            
+            loggedIn = loginWindow.isLoggedin;
+            output_pdm.Text = "";
+
+
+            ErrorTaskList.Clear();
+            assemblyList.Clear();
+            listErrorTasks.ItemsSource = null;
             trvParts.ItemsSource = null;
 
 
             var vars = pDMMethods.GetPDMFile(Search.Text);
 
-            output.Text = eRPMethods.GetERPDescription(vars.variables.PartNo, Username.Text, Password.Password);
+            if(vars == null)
+            {
+                output_pdm.Text = "No files found";
+                return;
+            }
+            output_pdm.Text = vars.variables.Description;
+            //var inventoryPart = await eRPMethods.GetERPInventoryPartAsync(vars.variables.PartNo, Username.Text, Password.Password);
 
-            
+            if (vars.variables.PartNo != "" | vars.variables.PartNo != null)
+            {
+                if (loggedIn)
+                {
+                    output.Text = eRPMethods.GetERPDescription(vars.variables.PartNo, username, password);
+                }
+                else
+                {
+                    output.Text = "ERP not logged in";
+                }
+            }
+
+            var cfgNames = pDMMethods.GetConfigurations(vars.file);
+
+            if (cfgNames == null)
+            {
+                output_pdm.Text = "Error finding file";
+                return;
+            }
+            var bom = pDMMethods.GetBOM(vars.file, cfgNames[0]);
+            //Create BOM
+            var bomList = pDMMethods.CreateBOM(bom, ErrorTaskList);
+
+            BomView.ItemsSource = bomList;
+
+            foreach (var item in bomList)
+            {
+                var ready = integrationMethods.CheckPDMExport(item, ErrorTaskList, OnlyExport.IsChecked.Value);
+            }
+
+            if (OnlyExport.IsChecked.Value)
+            {
+                if (loggedIn)
+                {
+                    foreach (var item in bomList)
+                    {
+                        eRPMethods.CheckERPExportIntegration(item, username, password, ErrorTaskList);
+                    }
+                }
+                BomViewTab.IsSelected = true;
+                listErrorTasks.ItemsSource = ErrorTaskList;
+                return;
+            }
 
             if (vars == null) { return; }
 
             if (vars.file.Name.EndsWith("sldasm", StringComparison.CurrentCultureIgnoreCase))
             {
+                Assembly assembly = new Assembly() { Name = vars.file.Name, Variables = vars.variables };
 
-                List<Assembly> assemblyList = new List<Assembly>();
-                Assembly assembly = new Assembly() { Name = vars.file.Name };
+                assembly.IntegrationLevel = integrationMethods.CheckIntegration(assembly, ErrorTaskList);
 
-                assembly.IntegrationError = CheckIntegration(vars);
+                assemblyList.Add(assembly);
 
-                var references = pDMMethods.GetReferences(vars.file, vars.folder);
+                var references = pDMMethods.GetReferences(vars.file, vars.folder, vars.file.Name, cfgNames[0]);
 
                 foreach (var reference in references)
                 {
-                    PDMVariables variables = pDMMethods.GetPDMVariableCard(reference.File);
+                    PDMVariables variables = pDMMethods.GetPDMVariableCard(reference);                    
 
-                    if(reference.Name.EndsWith("sldasm", StringComparison.CurrentCultureIgnoreCase))
+                    if (reference.Name.EndsWith("sldasm", StringComparison.CurrentCultureIgnoreCase))
                     {
-                        Assembly subassembly = new Assembly() { Name = reference.Name, Variables = variables };
-
+                        Assembly subassembly = new Assembly() { Name = reference.Name, Variables = variables, Version = reference.VersionRef, LatestVersion = reference.File.CurrentVersion, pdmID = reference.FileID };
                         //get parts
-                        SetPartsInAssembly(subassembly, reference);
-                        subassembly.IntegrationError = CheckIntegration(subassembly);
+                        if (!TopLevel.IsChecked.Value)
+                        {
+                            SetPartsInAssembly(subassembly, reference);
+                        }
+                        subassembly.IntegrationLevel = integrationMethods.CheckIntegration(subassembly, ErrorTaskList);
 
                         assembly.SubassemblyOrParts.Add(subassembly);
 
                     } else
                     {
                         //Make part
-                        Part newPart = new Part() { Name = reference.Name, Variables = variables};
-                        newPart.IntegrationError = CheckIntegration(newPart);
+                        Part newPart = new Part() { Name = reference.Name, Variables = variables, Version = reference.VersionRef, LatestVersion = reference.File.CurrentVersion, pdmID = reference.FileID };
+                        newPart.IsToolboxPart = reference.Folder.LocalPath.Contains(Settings.ToolboxPath, StringComparison.CurrentCultureIgnoreCase);
+                        newPart.IntegrationLevel = integrationMethods.CheckIntegration(newPart, ErrorTaskList);
                         assembly.SubassemblyOrParts.Add(newPart);
                     }
 
                 }
 
-                assemblyList.Add(assembly);
-                trvParts.ItemsSource = assemblyList;
 
+                UpdateTreeView(assembly);
+
+
+            } else if (vars.file.Name.EndsWith("sldprt", StringComparison.CurrentCultureIgnoreCase))
+            {
+                List<Assembly> partList = new List<Assembly>();
+
+
+                Assembly assembly = new Assembly() { Name = vars.file.Name, Variables = vars.variables, pdmID = vars.file.ID };
+                assembly.IntegrationLevel = integrationMethods.CheckIntegration(assembly, ErrorTaskList);
+
+                output_pdm.Text = vars.variables.Description;
+
+                partList.Add(assembly);
+
+                trvParts.ItemsSource = partList;
             }
 
-
-            //foreach (var fieldInfo in typeof(PDMVariables).GetFields())
-            //{
-            //    var fieldName = fieldInfo.Name;
-            //    var fieldValue = fieldInfo.GetValue(vars.variables);
-
-            //    Console.WriteLine($"{fieldName}: {fieldValue}");
-            //}
-
-
+            listErrorTasks.ItemsSource = ErrorTaskList;
 
         }
 
         private void SetPartsInAssembly(Assembly assembly, IEdmReference11 fileRef)
         {
-
-            var references = pDMMethods.GetReferences(fileRef.File, fileRef.Folder);
+            var references = pDMMethods.GetReferences(fileRef.File as IEdmFile18, fileRef.Folder as IEdmFolder13, assembly.Name, fileRef.RefConfiguration);
 
             foreach (var reference in references)
             {
-                PDMVariables variables = pDMMethods.GetPDMVariableCard(reference.File);
+                PDMVariables variables = pDMMethods.GetPDMVariableCard(reference);
 
                 if (reference.Name.EndsWith("sldasm", StringComparison.CurrentCultureIgnoreCase))
                 {
-                    Assembly subassembly = new Assembly() { Name = reference.Name, Variables = variables };
+                    Assembly subassembly = new Assembly() { Name = reference.Name, Variables = variables, Version = reference.VersionRef, LatestVersion = reference.File.CurrentVersion, pdmID = reference.FileID };
 
                     SetPartsInAssembly(subassembly, reference);
-                    subassembly.IntegrationError = CheckIntegration(subassembly);
+                    subassembly.IntegrationLevel = integrationMethods.CheckIntegration(subassembly, ErrorTaskList);
                     assembly.SubassemblyOrParts.Add(subassembly);
 
                 }
                 else
                 {
                     //Make part
-                    Part newPart = new Part() { Name = reference.Name, Variables = variables };
-                    newPart.IntegrationError = CheckIntegration(newPart);
+                    Part newPart = new Part() { Name = reference.Name, Variables = variables, Version = reference.VersionRef, LatestVersion = reference.File.CurrentVersion, pdmID = reference.FileID };
+                    newPart.IsToolboxPart = reference.Folder.LocalPath.Contains(Settings.ToolboxPath, StringComparison.CurrentCultureIgnoreCase);
+                    newPart.IntegrationLevel = integrationMethods.CheckIntegration(newPart, ErrorTaskList);
                     assembly.SubassemblyOrParts.Add(newPart);
                 }
             }
-
         }
 
-        private bool CheckIntegration(PDMPart part)
+
+        private void SearcERP_Click(object sender, RoutedEventArgs e)
         {
-            
-            if (part.variables.State.Contains("Approve"))
+            if (loggedIn)
             {
-                var partNo = eRPMethods.GetERPPartNo(part.file.Name.Remove(part.file.Name.Length - 7), Username.Text, Password.Password);
-
-                if(partNo != null)
-                {
-                    return true;
-                } else
-                {
-                    return false;
-                }
+                output.Text = eRPMethods.GetERPDescription(Search.Text, username, password);
             }
-
-            return true;
         }
 
-        private bool CheckIntegration(Part part)
+        private void UpdateTreeView(Assembly assembly)
         {
-            if (part.Variables.State.Contains("Approve"))
-            {
-                var partNo = eRPMethods.GetERPPartNo(part.Name.Remove(part.Name.Length - 7), Username.Text, Password.Password);
-
-                if (partNo != null)
-                {
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
-            }
-
-            return true;
+            assemblyList.Append(assembly);
+            trvParts.ItemsSource = assemblyList;
         }
 
-        private bool CheckIntegration(Assembly assembly)
+        private void Search_KeyDown(object sender, KeyEventArgs e)
         {
-            if (assembly.Variables.State.Contains("Approve"))
+            if (e.Key != Key.Return && e.Key != Key.Enter)
             {
-                var partNo = eRPMethods.GetERPPartNo(assembly.Name.Remove(assembly.Name.Length - 7), Username.Text, Password.Password);
-
-                if (partNo != null)
-                {
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
+                return;
             }
+            e.Handled = true;
 
-            return true;
+            Button_Search(sender, e);
         }
-
     }
 
+    public enum IntegrationLevel
+    {
+        Development,
+        Dummy,
+        IntegrationError,
+        Approved,
+        Warning,
+        Missing,
+        Expired,
+        Obsolete,
+        InternalPart
+    }
+
+    
 
     public class Assembly
     {
@@ -220,7 +284,12 @@ namespace PDM_ERP_Checker
 
         public string Name { get; set; }
         public PDMVariables Variables { get; set; }
-        public bool IntegrationError { get; set; }
+        public ERPData ERPData { get; set; }
+        public IntegrationLevel IntegrationLevel { get; set; }
+        public int Version { get; set; }
+        public int LatestVersion { get; set; }
+        public int pdmID { get; set; }
+        public string ErrorMessages { get; set; }
         public ObservableCollection<object> SubassemblyOrParts { get; set; }
         public bool IsSubassembly => true; // You can set this property for assembly objects
     }
@@ -229,7 +298,22 @@ namespace PDM_ERP_Checker
     {
         public string Name { get; set; }
         public PDMVariables Variables { get; set; }
-        public bool IntegrationError { get; set; }
+        public ERPData ERPData { get; set; }
+        public IntegrationLevel IntegrationLevel { get; set; }
+        public int Version { get; set; }
+        public int LatestVersion { get; set; }
+        public int pdmID { get; set; }
+
+        public string ErrorMessages { get; set; }
+        public bool IsToolboxPart { get; set; }
         public bool IsSubassembly => false; // Parts are not sub-assemblies
+    }
+
+    public static class StringExtensions
+    {
+        public static bool Contains(this string source, string toCheck, StringComparison comp)
+        {
+            return source?.IndexOf(toCheck, comp) >= 0;
+        }
     }
 }

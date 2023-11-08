@@ -37,12 +37,12 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="EPDM.Interop.epdm">
-      <HintPath>C:\Program Files\SOLIDWORKS Corp\SOLIDWORKS PDM\EPDM.Interop.epdm.dll</HintPath>
-      <EmbedInteropTypes>False</EmbedInteropTypes>
+      <HintPath>C:\Program Files\SOLIDWORKS PDM\EPDM.Interop.epdm.dll</HintPath>
+      <EmbedInteropTypes>True</EmbedInteropTypes>
     </Reference>
     <Reference Include="EPDM.Interop.EPDMResultCode">
-      <HintPath>C:\Program Files\SOLIDWORKS Corp\SOLIDWORKS PDM\EPDM.Interop.EPDMResultCode.dll</HintPath>
-      <EmbedInteropTypes>False</EmbedInteropTypes>
+      <HintPath>C:\Program Files\SOLIDWORKS PDM\EPDM.Interop.EPDMResultCode.dll</HintPath>
+      <EmbedInteropTypes>True</EmbedInteropTypes>
     </Reference>
     <Reference Include="Microsoft.Bcl.AsyncInterfaces, Version=7.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>..\packages\Microsoft.Bcl.AsyncInterfaces.7.0.0\lib\net462\Microsoft.Bcl.AsyncInterfaces.dll</HintPath>
@@ -70,6 +70,11 @@
       <HintPath>..\packages\System.Runtime.CompilerServices.Unsafe.6.0.0\lib\net461\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
     </Reference>
     <Reference Include="System.Runtime.Serialization" />
+    <Reference Include="System.Runtime.Serialization.Primitives, Version=4.1.2.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Runtime.Serialization.Primitives.4.3.0\lib\net46\System.Runtime.Serialization.Primitives.dll</HintPath>
+      <Private>True</Private>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="System.Text.Encodings.Web, Version=7.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>..\packages\System.Text.Encodings.Web.7.0.0\lib\net462\System.Text.Encodings.Web.dll</HintPath>
     </Reference>
@@ -101,6 +106,11 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="IntegrationMethods.cs" />
+    <Compile Include="Settings.cs" />
+    <Compile Include="Window1.xaml.cs">
+      <DependentUpon>Window1.xaml</DependentUpon>
+    </Compile>
     <Page Include="MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
@@ -114,9 +124,13 @@
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
+    <Page Include="Window1.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="OpenAPIs\PDM_Inventory_Checker_openapiv2.cs" />
+    <Compile Include="OpenAPIs\LIVE_V2_PDM_Inventory_Checker_openapiv2.cs" />
     <Compile Include="PDMMethods.cs" />
     <Compile Include="Properties\AssemblyInfo.cs">
       <SubType>Code</SubType>
@@ -135,9 +149,9 @@
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
-    <None Include="..\..\PDM_Inventory_Checker_openapiv2.json">
-      <Link>OpenAPIs\PDM_Inventory_Checker_openapiv2.json</Link>
-      <Namespace>ERP</Namespace>
+    <None Include="..\..\LIVE_V2_PDM_Inventory_Checker_openapiv2.json">
+      <Link>OpenAPIs\LIVE_V2_PDM_Inventory_Checker_openapiv2.json</Link>
+      <Namespace>ERP_LIVE</Namespace>
       <ClassName>ERPAPI</ClassName>
       <CodeGenerator>NSwagCSharp</CodeGenerator>
     </None>
@@ -152,6 +166,13 @@
   </ItemGroup>
   <ItemGroup>
     <Resource Include="GM_favicon.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Images\i_costingtoolboxpart_20.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Images\i_assemblypart_20.png" />
+    <Resource Include="Images\i_assembly_20.png" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
